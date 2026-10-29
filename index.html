@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111113">
+  <meta name="description" content="Create and sign field agreements, even while offline.">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>PinkySwear</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.6/quill.snow.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/dexie@3.2.2/dist/dexie.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script defer src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <section id="login-form" class="auth-screen" aria-labelledby="login-title">
+    <div class="auth-stage">
+      <div class="brand-mark brand-mark--large brand-mark--logo" aria-hidden="true">
+        <span>P</span>
+        <img src="https://storage.ning.com/topology/rest/1.0/file/get/13515842497?profile=RESIZE_584x" alt="">
+      </div>
+      <p class="eyebrow">Your agreement workspace</p>
+      <h1 id="login-title">Welcome to PinkySwear</h1>
+      <p class="auth-copy">Create, capture, and sign field agreements—even without a connection.</p>
+
+      <button id="auth-card-trigger" class="identity-card-3d" type="button" aria-haspopup="dialog" aria-controls="account-modal">
+        <span class="identity-card-glow" aria-hidden="true"></span>
+        <span class="identity-card-grid" aria-hidden="true"></span>
+        <span class="identity-card-topline">
+          <span class="identity-chip"><i></i><i></i><i></i></span>
+          <span class="identity-card-status"><span></span> AGREEMENT WORKSPACE</span>
+        </span>
+        <span class="identity-card-person">
+          <span id="landing-user-avatar" class="identity-avatar">PS</span>
+          <span class="identity-card-copy">
+            <strong id="landing-user-name">Your profile</strong>
+            <small id="landing-user-handle">Tap to sign in or create one</small>
+          </span>
+        </span>
+        <span id="landing-card-signature" class="identity-card-signature signature-classic">PinkySwear</span>
+        <span class="identity-card-footer"><span>MEMBER CARD</span><span>OPEN →</span></span>
+      </button>
+      <div class="google-entry"><div id="google-signin-landing" class="google-signin-slot"></div><button id="google-setup-landing" class="button button--secondary button--full" type="button">Continue with Google</button></div>
+      <p id="google-signin-help" class="privacy-note">Sign in with Google to sync your agreements across devices.</p>
+      <p class="privacy-note">Or click the card to use a device-only profile or manage your account.</p>
+    </div>
+  </section>
+
+  <div id="loading-screen" class="loading-screen" aria-live="polite">
+    <span class="spinner" aria-hidden="true"></span>
+    <span>Opening your workspace…</span>
+  </div>
+
+  <div id="app" class="app-shell" hidden>
+    <header class="topbar">
+      <a class="brand" href="#documents" data-view="documents" aria-label="PinkySwear documents">
+        <span class="brand-mark brand-mark--logo" aria-hidden="true">
+          <span>P</span>
+          <img src="https://storage.ning.com/topology/rest/1.0/file/get/13515842497?profile=RESIZE_584x" alt="">
+        </span>
+        <span>PinkySwear</span>
+      </a>
+      <div class="topbar-actions">
+        <div id="connection-status" class="connection-pill" role="status">
+          <span id="status-indicator" class="status-dot"></span>
+          <span id="status-text">Checking…</span>
+        </div>
+        <button id="menu-button" class="icon-button mobile-only" type="button" aria-label="Open navigation" aria-controls="main-menu" aria-expanded="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <aside id="main-menu" class="sidebar" aria-label="Primary navigation">
+      <div class="sidebar-user">
+        <button id="sidebar-profile-trigger" class="sidebar-profile-trigger" type="button" aria-haspopup="dialog" aria-controls="account-modal">
+          <span id="user-initials" class="avatar">?</span>
+          <span><strong id="user-name-display">Device user</strong><small id="user-role-display">Field Agent</small></span>
+        </button>
+        <button id="close-menu" class="icon-button mobile-only" type="button" aria-label="Close navigation">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <nav class="nav-list">
+        <button class="nav-item active" data-view="documents" type="button"><span aria-hidden="true">▤</span> Documents</button>
+        <button class="nav-item" data-view="templates" type="button"><span aria-hidden="true">◇</span> Templates</button>
+        <button class="nav-item" data-view="brand" type="button"><span aria-hidden="true">✳</span> Brand DNA</button>
+        <button class="nav-item" data-view="my-templates" type="button"><span aria-hidden="true">▧</span> My templates</button>
+        <button class="nav-item" data-view="queue" type="button"><span aria-hidden="true">↻</span> Sync status <span id="queue-badge" class="badge" hidden>0</span></button>
+        <button class="nav-item" data-view="settings" type="button"><span aria-hidden="true">⚙</span> Settings</button>
+        <button id="admin-nav" class="nav-item" data-view="admin" type="button" hidden><span aria-hidden="true">⌘</span> Admin</button>
+      </nav>
+      <button id="sync-now" class="button button--secondary sidebar-sync" type="button">Sync changes</button>
+    </aside>
+
+    <main id="main-content" class="main-content" tabindex="-1">
+      <section id="documents-view" class="view-section" aria-labelledby="documents-heading">
+        <div class="page-heading">
+          <div><p class="eyebrow">Workspace</p><h1 id="documents-heading">Documents</h1></div>
+          <button id="new-document" class="button button--primary" type="button"><span aria-hidden="true">＋</span> New document</button>
+        </div>
+        <label class="search-field" for="document-search">
+          <span aria-hidden="true">⌕</span>
+          <input id="document-search" type="search" autocomplete="off" placeholder="Search documents">
+        </label>
+        <div id="documents-list" class="card-list" aria-live="polite"></div>
+      </section>
+
+      <section id="templates-view" class="view-section" aria-labelledby="templates-heading" hidden>
+        <div class="page-heading">
+          <div><p class="eyebrow">Reusable content</p><h1 id="templates-heading">Templates</h1></div>
+          <button id="new-template" class="button button--primary" type="button"><span aria-hidden="true">＋</span> New template</button>
+        </div>
+        <label class="select-field" for="template-category">Category
+          <select id="template-category">
+            <option value="all">All categories</option><option value="business">Business</option>
+            <option value="legal">Legal</option><option value="field">Field services</option><option value="custom">Custom</option>
+          </select>
+        </label>
+        <div id="templates-list" class="template-grid" aria-live="polite"></div>
+      </section>
+
+      <section id="brand-view" class="view-section" aria-labelledby="brand-heading" hidden>
+        <div class="page-heading">
+          <div><p class="eyebrow">Brand system</p><h1 id="brand-heading">Brand DNA Analyzer</h1></div>
+        </div>
+        <div class="brand-workspace">
+          <form id="brand-analyze-form" class="panel stack">
+            <h2>Analyze a brand</h2>
+            <label for="brand-saved-profile">Saved brand profile<select id="brand-saved-profile"><option value="">New analysis</option></select></label>
+            <label for="brand-source-url">Brand website URL<input id="brand-source-url" type="url" inputmode="url" placeholder="https://example.com" required></label>
+            <label for="brand-logo-url">Logo image URL <span class="muted">optional</span><input id="brand-logo-url" type="url" inputmode="url" placeholder="https://example.com/logo.png"></label>
+            <label for="brand-logo-file">Or upload a logo<input id="brand-logo-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
+            <div id="brand-logo-preview" class="brand-logo-preview" hidden><img id="brand-logo-image" alt="Brand logo preview"><span id="brand-logo-source"></span></div>
+            <button id="analyze-brand" class="button button--primary" type="submit">Analyze website</button>
+            <p class="form-help">The analyzer reviews the homepage and a few relevant public pages. Review its findings before generating templates.</p>
+          </form>
+          <section id="brand-profile-panel" class="panel stack" hidden aria-labelledby="brand-profile-heading">
+            <div class="panel-heading"><div><p class="eyebrow">Editable analysis</p><h2 id="brand-profile-heading">Brand profile</h2></div><span id="brand-confidence" class="status-badge"></span></div>
+            <label for="brand-name">Brand name<input id="brand-name" maxlength="100"></label>
+            <div class="form-grid">
+              <label for="brand-primary">Primary color<input id="brand-primary" type="color" value="#35212f"></label>
+              <label for="brand-secondary">Secondary color<input id="brand-secondary" type="color" value="#f5d6e3"></label>
+              <label for="brand-accent">Accent color<input id="brand-accent" type="color" value="#e75f96"></label>
+              <label for="brand-fonts">Typography<input id="brand-fonts" maxlength="160" placeholder="Modern sans-serif"></label>
+            </div>
+            <label for="brand-voice">Voice and tone<textarea id="brand-voice" rows="2" maxlength="500"></textarea></label>
+            <label for="brand-audience">Audience<textarea id="brand-audience" rows="2" maxlength="400"></textarea></label>
+            <label for="brand-visual-style">Visual style and motifs<textarea id="brand-visual-style" rows="2" maxlength="500"></textarea></label>
+            <label for="brand-layout">Layout guidance<textarea id="brand-layout" rows="2" maxlength="500"></textarea></label>
+            <label for="brand-evidence">Analysis evidence<textarea id="brand-evidence" rows="3" readonly></textarea></label>
+            <div class="form-grid">
+              <label for="brand-batch-name">Template batch name<input id="brand-batch-name" maxlength="100" placeholder="Acme branded templates"></label>
+              <label for="brand-template-category">Category<select id="brand-template-category"><option value="all">All templates</option><option value="business">Business</option><option value="legal">Legal</option><option value="field">Field services</option><option value="custom">Custom</option></select></label>
+            </div>
+            <div id="brand-template-choices" class="brand-template-choices" aria-label="Templates to brand"></div>
+            <div class="button-row"><button id="save-brand-profile" class="button button--secondary" type="button">Save brand profile</button><button id="generate-brand-batch" class="button button--primary" type="button">Generate branded batch</button></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="my-templates-view" class="view-section" aria-labelledby="my-templates-heading" hidden>
+        <div class="page-heading"><div><p class="eyebrow">Your branded library</p><h1 id="my-templates-heading">My templates</h1></div><button class="button button--primary" type="button" data-view="brand">＋ Brand templates</button></div>
+        <div id="my-template-batches" class="stack" aria-live="polite"></div>
+      </section>
+
+      <section id="queue-view" class="view-section" aria-labelledby="queue-heading" hidden>
+        <div class="page-heading">
+          <div><p class="eyebrow">Offline first</p><h1 id="queue-heading">Sync status</h1></div>
+          <button id="sync-all" class="button button--primary" type="button">Sync now</button>
+        </div>
+        <div id="sync-summary" class="notice" role="status">
+          <strong id="pending-count">Checking local changes…</strong>
+          <span id="sync-description">Your work is saved locally first.</span>
+        </div>
+        <div id="sync-queue-list" class="card-list"></div>
+      </section>
+
+      <section id="settings-view" class="view-section" aria-labelledby="settings-heading" hidden>
+        <div class="page-heading"><div><p class="eyebrow">This device</p><h1 id="settings-heading">Settings</h1></div></div>
+        <div class="settings-grid">
+          <section class="panel">
+            <h2>Device profile</h2>
+            <div class="profile-row">
+              <span id="settings-user-initials" class="avatar">?</span>
+              <div class="grow"><strong id="settings-user-name">Device user</strong><small id="settings-user-handle">@device · <span id="settings-user-role">Field Agent</span></small></div>
+              <button id="edit-profile" class="text-button" type="button">Edit</button>
+            </div>
+            <div id="settings-profile-signature" class="settings-signature signature-classic">PinkySwear</div>
+          </section>
+          <section class="panel">
+            <h2>Data portability</h2>
+            <p>Backups include documents, signatures, attachments, locations, templates, and saved brand profiles.</p>
+            <div class="stack">
+              <button id="export-backup" class="button button--secondary" type="button">Export complete backup</button>
+              <button id="import-backup" class="button button--secondary" type="button">Import backup</button>
+              <button id="export-spreadsheet" class="button button--secondary" type="button">Export document index</button>
+            </div>
+            <input id="backup-file-input" type="file" accept="application/json,.json" hidden>
+          </section>
+          <section class="panel danger-panel">
+            <h2>Session</h2>
+            <p>Signing out returns to the welcome screen. It does not remove agreements stored in this browser.</p>
+            <button id="logout" class="button button--danger" type="button">Sign out</button>
+          </section>
+        </div>
+      </section>
+
+      <section id="admin-view" class="view-section" aria-labelledby="admin-heading" hidden>
+        <div class="page-heading"><div><p class="eyebrow">Owner controls</p><h1 id="admin-heading">API administration</h1></div><button id="admin-refresh" class="button button--secondary" type="button">Refresh</button></div>
+        <section class="panel admin-google-guide" aria-labelledby="admin-google-guide-heading">
+          <h2 id="admin-google-guide-heading">Connect Google sign-in</h2>
+          <p>Google sign-in uses Google Identity Services with an OAuth Web client. PinkySwear only requests basic account identity; it does not need a Google API key or client secret.</p>
+          <ol>
+            <li><a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">Open Google Cloud Console</a> and create or select a project.</li>
+            <li>Configure the OAuth consent screen / Google Auth Platform branding and audience for your app.</li>
+            <li>In <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">APIs &amp; Services → Credentials</a>, choose <strong>Create credentials → OAuth client ID → Web application</strong>.</li>
+            <li>Add each exact site origin under <strong>Authorized JavaScript origins</strong> (scheme, hostname, and port only; no path), including the published PinkySwear origin and any preview or development origin you use.</li>
+            <li>Copy the OAuth client ID ending in <code>.apps.googleusercontent.com</code> into the field below and select <strong>Save API settings</strong>. Reload the landing page to display Google’s sign-in button.</li>
+          </ol>
+          <a class="admin-doc-link" href="https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid" target="_blank" rel="noopener noreferrer">Google Identity Services setup guide ↗</a>
+        </section>
+        <form id="admin-settings-form" class="panel stack">
+          <h2>Service controls</h2>
+          <label class="admin-toggle"><input id="admin-brand-analysis" type="checkbox"> Brand DNA analysis API</label>
+          <label class="admin-toggle"><input id="admin-logo-proxy" type="checkbox"> Brand logo image proxy</label>
+          <label class="admin-toggle"><input id="admin-document-sync" type="checkbox"> Cloud document sync API</label>
+          <label for="admin-analysis-pages">Maximum pages per brand analysis<select id="admin-analysis-pages"><option value="1">1 page</option><option value="2">2 pages</option><option value="3">3 pages</option><option value="4">4 pages</option></select></label>
+          <label for="admin-google-client-id">Google OAuth Web client ID<input id="admin-google-client-id" autocomplete="off" placeholder="123…apps.googleusercontent.com"></label>
+          <div class="button-row"><button id="admin-save" class="button button--primary" type="submit">Save API settings</button><span id="admin-save-status" class="form-help" role="status"></span></div>
+        </form>
+        <section class="panel admin-users-panel" aria-labelledby="admin-users-heading">
+          <h2 id="admin-users-heading">Users</h2>
+          <p id="admin-users-summary" class="form-help"></p>
+          <div class="admin-users-scroll"><table class="admin-users-table"><thead><tr><th>User</th><th>Handle</th><th>Role</th><th>Docs</th><th>Joined</th><th>Last sync</th></tr></thead><tbody id="admin-users-body"></tbody></table></div>
+        </section>
+        <section class="panel admin-audit-panel"><h2>Recent admin changes</h2><div id="admin-audit-list" class="stack" aria-live="polite"></div></section>
+      </section>
+
+      <section id="document-editor" class="view-section editor-view" aria-labelledby="editor-heading" hidden>
+        <div class="editor-topbar">
+          <button id="back-to-documents" class="icon-button" type="button" aria-label="Back to documents">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <div class="grow"><p class="eyebrow" id="editor-mode">New document</p><h1 id="editor-heading">Agreement details</h1></div>
+              <div class="button-row editor-save-actions">
+                <button id="save-document" class="button button--secondary" type="button">Save draft</button>
+                <button id="sign-document" class="button button--primary" type="button">Sign &amp; save</button>
+                <button id="amend-document" class="button button--primary" type="button" hidden>Create amendment</button>
+              </div>
+        </div>
+        <div class="editor-layout">
+          <div class="editor-main panel">
+            <label id="template-selector-container" for="template-selector">Start from a template
+              <select id="template-selector"><option value="">Blank document</option></select>
+            </label>
+            <label for="document-title">Document title<input id="document-title" maxlength="160" autocomplete="off" placeholder="e.g. Service agreement — Acme Co."></label>
+            <label for="document-content">Agreement content<textarea id="document-content" rows="18" maxlength="500000" placeholder="Enter the terms of the agreement…"></textarea></label>
+          </div>
+          <aside class="editor-aside">
+            <section class="panel compact-panel">
+              <div class="panel-heading"><h2>Evidence</h2><span id="document-timestamp" class="muted"></span></div>
+              <div id="location-info" class="evidence-status">No location captured</div>
+              <input id="location-data" type="hidden">
+              <button id="capture-location" class="button button--secondary button--full" type="button">Capture location</button>
+              <div id="photo-attachments" class="photo-grid"></div>
+              <div class="stack evidence-actions">
+                <button id="add-photo" class="button button--secondary button--full" type="button">Take photo</button>
+                <button id="upload-photo" class="button button--secondary button--full" type="button">Choose photos</button>
+                <input id="photo-file-input" type="file" accept="image/*" multiple hidden>
+              </div>
+            </section>
+            <section class="panel compact-panel">
+              <div class="panel-heading"><h2>Signature</h2><span id="signature-state" class="muted">Required</span></div>
+              <button id="signature-field" class="signature-field" type="button">
+                <img id="signature-preview" alt="Captured signature" hidden>
+                <span id="signature-placeholder">Tap to sign</span>
+              </button>
+              <input id="signature-data" type="hidden">
+            </section>
+            <section class="panel compact-panel">
+              <h2>Export</h2>
+              <div class="button-row wrap"><button id="export-pdf" class="button button--secondary" type="button">PDF</button><button id="generate-qr" class="button button--secondary" type="button">QR code</button></div>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Mobile navigation">
+      <button class="nav-item active" data-view="documents" type="button">▤<small>Documents</small></button>
+      <button class="nav-item" data-view="templates" type="button">◇<small>Templates</small></button>
+      <button id="quick-new" class="quick-add" type="button" aria-label="New document">＋</button>
+      <button class="nav-item" data-view="queue" type="button">↻<small>Sync</small></button>
+      <button class="nav-item" data-view="settings" type="button">⚙<small>Settings</small></button>
+    </nav>
+  </div>
+
+  <dialog id="account-modal" class="modal account-modal" aria-labelledby="account-modal-title">
+    <div class="modal-header account-modal-header">
+      <div class="account-modal-brand">
+        <span class="brand-mark brand-mark--logo" aria-hidden="true"><span>P</span><img src="https://storage.ning.com/topology/rest/1.0/file/get/13515842497?profile=RESIZE_584x" alt=""></span>
+        <div><p class="eyebrow">Identity studio</p><h2 id="account-modal-title">Your PinkySwear profile</h2></div>
+      </div>
+      <button id="close-account-modal" class="icon-button" type="button" aria-label="Close account dialog">×</button>
+    </div>
+
+    <div class="account-tabs" role="tablist" aria-label="Account options">
+      <button id="account-tab-signin" class="account-tab active" type="button" role="tab" aria-selected="true" aria-controls="account-panel-signin" data-account-tab="signin">Sign in</button>
+      <button id="account-tab-create" class="account-tab" type="button" role="tab" aria-selected="false" aria-controls="account-panel-create" data-account-tab="create" tabindex="-1">Create profile</button>
+      <button id="account-tab-profile" class="account-tab" type="button" role="tab" aria-selected="false" aria-controls="account-panel-profile" data-account-tab="profile" tabindex="-1">My profile</button>
+    </div>
+
+    <section id="account-panel-signin" class="account-panel" role="tabpanel" aria-labelledby="account-tab-signin" data-account-panel="signin">
+      <div id="platform-account-status" class="account-status-card">
+        <img id="platform-account-avatar" src="./icon.svg" alt="" class="account-avatar">
+        <div class="grow"><strong id="platform-account-name">Checking your Websim account…</strong><small id="platform-account-detail">Cloud profiles use your authenticated platform identity.</small></div>
+        <span id="platform-account-badge" class="status-badge">Checking</span>
+      </div>
+      <div id="google-signin-modal" class="google-signin-slot"></div>
+      <button id="google-setup-modal" class="button button--secondary button--full" type="button">Continue with Google</button>
+      <p id="google-modal-help" class="form-help">Google sign-in will be available when the OAuth client is configured.</p>
+      <button id="platform-signin" class="button button--secondary button--full" type="button">Continue with Websim</button>
+      <div class="account-divider"><span>or use this device offline</span></div>
+      <form id="device-login-form" class="stack" novalidate>
+        <label for="user-name">Display name<input id="user-name" name="name" autocomplete="name" maxlength="80" required placeholder="e.g. Jordan Lee"></label>
+        <button id="login-button" class="button button--secondary button--full" type="submit">Continue on this device</button>
+      </form>
+      <p class="privacy-note">Device-only agreements stay in this browser. Cloud profiles sync agreements to your signed-in devices. Anyone with access to this browser can open local agreements.</p>
+    </section>
+
+    <section id="account-panel-create" class="account-panel" role="tabpanel" aria-labelledby="account-tab-create" data-account-panel="create" hidden>
+      <form id="create-profile-form" class="stack" novalidate>
+        <div class="form-grid">
+          <label for="create-display-name">Display name<input id="create-display-name" maxlength="80" autocomplete="name" required></label>
+          <label for="create-handle">Unique handle<span class="input-prefix"><span>@</span><input id="create-handle" maxlength="24" autocomplete="username" pattern="[a-z0-9][a-z0-9._-]{2,23}" required></span></label>
+        </div>
+        <label for="create-role">Role or title<input id="create-role" maxlength="80" placeholder="Field Agent"></label>
+        <label for="create-bio">Short bio<textarea id="create-bio" rows="3" maxlength="280" placeholder="What should collaborators know about you?"></textarea></label>
+        <button id="create-profile-submit" class="button button--primary" type="submit">Create cloud profile</button>
+        <p id="create-profile-help" class="form-help">You must be signed into Websim to create a cloud profile.</p>
+      </form>
+    </section>
+
+    <section id="account-panel-profile" class="account-panel" role="tabpanel" aria-labelledby="account-tab-profile" data-account-panel="profile" hidden>
+      <form id="cloud-profile-form" class="stack" novalidate>
+        <div class="profile-hero">
+          <img id="profile-avatar" src="./icon.svg" alt="Profile avatar" class="account-avatar account-avatar--large">
+          <div><p class="eyebrow">Signed in as</p><strong id="profile-account-username">Device profile</strong><small id="profile-cloud-status">Saved on this device</small></div>
+        </div>
+        <div class="form-grid">
+          <label for="profile-display-name">Display name<input id="profile-display-name" maxlength="80" autocomplete="name" required></label>
+          <label for="profile-handle">Handle<span class="input-prefix"><span>@</span><input id="profile-handle" maxlength="24" autocomplete="username" required></span></label>
+        </div>
+        <label for="profile-role">Role or title<input id="profile-role" maxlength="80"></label>
+        <label for="profile-bio">Short bio<textarea id="profile-bio" rows="3" maxlength="280"></textarea></label>
+
+        <fieldset class="signature-studio">
+          <legend>Profile signature</legend>
+          <div class="signature-mode-tabs" role="tablist" aria-label="Signature method">
+            <button class="signature-mode active" type="button" role="tab" aria-selected="true" data-signature-mode="drawn">Draw</button>
+            <button class="signature-mode" type="button" role="tab" aria-selected="false" data-signature-mode="typed">Type</button>
+          </div>
+          <div id="profile-signature-drawn" class="signature-generator-panel">
+            <div class="profile-signature-canvas-wrap"><canvas id="profile-signature-canvas"></canvas></div>
+            <button id="clear-profile-signature" class="text-button" type="button">Clear drawing</button>
+          </div>
+          <div id="profile-signature-typed" class="signature-generator-panel" hidden>
+            <div class="form-grid">
+              <label for="profile-signature-text">Signature text<input id="profile-signature-text" maxlength="80" placeholder="Your name"></label>
+              <label for="profile-signature-style">Style<select id="profile-signature-style"><option value="classic">Classic script</option><option value="editorial">Editorial</option><option value="minimal">Minimal</option></select></label>
+            </div>
+            <div id="typed-signature-preview" class="typed-signature-preview signature-classic">Your signature</div>
+          </div>
+        </fieldset>
+
+        <div class="modal-actions account-profile-actions">
+          <button id="account-signout" class="button button--danger" type="button">Close workspace</button>
+          <button id="save-cloud-profile" class="button button--primary" type="submit">Save profile</button>
+        </div>
+      </form>
+    </section>
+  </dialog>
+
+  <dialog id="camera-modal" class="modal modal--camera" aria-labelledby="camera-title">
+    <div class="modal-header"><h2 id="camera-title">Take a photo</h2><button id="close-camera" class="icon-button" type="button" aria-label="Close camera">×</button></div>
+    <div class="camera-stage"><video id="camera-preview" autoplay muted playsinline></video><canvas id="photo-capture" hidden></canvas></div>
+    <div class="camera-controls"><button id="switch-camera" class="button button--secondary" type="button">Switch camera</button><button id="take-photo" class="shutter" type="button" aria-label="Take photo"></button></div>
+  </dialog>
+
+  <dialog id="photo-viewer" class="modal modal--viewer" aria-label="Photo preview">
+    <div class="modal-header"><button id="delete-photo" class="button button--danger" type="button">Delete photo</button><button id="close-viewer" class="icon-button" type="button" aria-label="Close preview">×</button></div>
+    <img id="fullsize-photo" alt="Full-size attachment preview">
+  </dialog>
+
+  <dialog id="signature-modal" class="modal" aria-labelledby="signature-title">
+    <div class="modal-header"><div><p class="eyebrow">Use your finger or pointer</p><h2 id="signature-title">Add signature</h2></div><button id="cancel-signature" class="icon-button" type="button" aria-label="Close signature pad">×</button></div>
+    <div class="signature-mode-tabs" role="group" aria-label="Document signature method">
+      <button class="signature-mode active" type="button" aria-pressed="true" data-document-signature-mode="drawn">Draw</button>
+      <button class="signature-mode" type="button" aria-pressed="false" data-document-signature-mode="typed">Type</button>
+    </div>
+    <div id="document-signature-drawn" class="signature-canvas-wrap"><canvas id="signature-pad"></canvas></div>
+    <div id="document-signature-typed" class="stack" hidden>
+      <label for="document-signature-text">Signer name<input id="document-signature-text" maxlength="80" autocomplete="name"></label>
+      <div id="document-signature-preview" class="typed-signature-preview signature-classic" aria-live="polite"></div>
+    </div>
+    <div class="modal-actions"><button id="clear-signature" class="button button--secondary" type="button">Clear</button><button id="save-signature" class="button button--primary" type="button">Use signature</button></div>
+  </dialog>
+
+  <dialog id="template-editor-modal" class="modal modal--wide" aria-labelledby="template-editor-title">
+    <form id="template-editor-form" method="dialog">
+      <div class="modal-header"><h2 id="template-editor-title">Create template</h2><button id="close-template-editor" class="icon-button" value="cancel" aria-label="Close template editor">×</button></div>
+      <div class="form-grid"><label for="template-editor-name">Template name<input id="template-editor-name" maxlength="160" required></label><label for="template-editor-category">Category<select id="template-editor-category"><option value="business">Business</option><option value="legal">Legal</option><option value="field">Field services</option><option value="custom">Custom</option></select></label></div>
+      <label for="template-editor-description">Description<input id="template-editor-description" maxlength="300"></label>
+      <label>Template content<div id="template-editor-content" class="rich-editor"></div></label>
+      <div class="modal-actions"><button id="cancel-template-editor" class="button button--secondary" value="cancel">Cancel</button><button id="save-template-editor" class="button button--primary" value="default">Save template</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="template-config-modal" class="modal modal--wide" aria-labelledby="template-config-title">
+    <div class="modal-header"><div><p class="eyebrow">Fill placeholders</p><h2 id="template-config-title">Configure template</h2></div><button id="close-config" class="icon-button" type="button" aria-label="Close configuration">×</button></div>
+    <div class="config-layout"><form id="template-config-form" class="stack"></form><article id="template-config-preview" class="document-preview template-config-preview"></article></div>
+    <div class="modal-actions"><button id="close-config-cancel" class="button button--secondary" type="button">Cancel</button><button id="save-config" class="button button--primary" type="button">Use template</button></div>
+  </dialog>
+
+  <dialog id="pdf-preview-modal" class="modal modal--wide" aria-labelledby="preview-title">
+    <div class="modal-header"><h2 id="preview-title">Template preview</h2><button id="close-pdf-preview" class="icon-button" type="button" aria-label="Close preview">×</button></div>
+    <article id="pdf-preview-content" class="paper-preview"></article>
+  </dialog>
+
+  <dialog id="qr-modal" class="modal modal--small" aria-labelledby="qr-title">
+    <div class="modal-header"><h2 id="qr-title">Document QR code</h2><button id="close-qr" class="icon-button" type="button" aria-label="Close QR code">×</button></div>
+            <div id="qr-canvas" class="qr-code" aria-label="Generated document QR code"></div><p class="muted centered">Contains the title and a short text excerpt. It is not a share link or a signed copy.</p>
+  </dialog>
+
+  <div id="toast-container" class="toast-container" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

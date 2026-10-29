@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PS Tests</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    body { max-width: 760px; margin: 3rem auto; padding: 0 1rem; background: #0c0c0e; color: #f7f4f5; }
+    li { margin: .55rem 0; padding: .7rem; border: 1px solid #303037; border-radius: 10px; list-style: none; }
+    .pass { border-left: 4px solid #55d59a; } .fail { border-left: 4px solid #ff6b76; }
+    pre { overflow: auto; white-space: pre-wrap; color: #ff9ca4; }
+  </style>
+</head>
+<body>
+  <h1>Core test suite</h1>
+  <p id="summary">Running…</p>
+  <ol id="results"></ol>
+  <script type="module" src="./tests/core.test.js"></script>
+</body>
+</html>
